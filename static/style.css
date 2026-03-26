@@ -1,0 +1,55 @@
+/* Global */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #dfe9f3, #ffffff);
+    color: #333;
+}
+
+header {
+    background: linear-gradient(90deg, #4facfe, #00c6ff);
+    color: white;
+    text-align: center;
+    padding: 25px;
+}
+
+.hero {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+section {
+    background: white;
+    margin: 20px auto;
+    padding: 30px;
+    max-width: 800px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+section:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+}
+
+h2 { color: #2c3e50; margin-bottom: 10px; }
+
+.skills { display: flex; flex-wrap: wrap; gap: 10px; }
+.skills span { background: #4facfe; color: white; padding: 8px 14px; border-radius: 20px; font-size: 14px; }
+.skills span:hover { transform: scale(1.1); }
+
+form input, form textarea { width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+button { background: #4facfe; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; }
+button:hover { background: #3a8de0; transform: scale(1.05); }
+
+footer { text-align: center; padding: 15px; background: #2c3e50; color: white; margin-top: 20px; }
+
+@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
