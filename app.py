@@ -1,96 +1,128 @@
-import os
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 import psycopg2
-from urllib.parse import urlparse
+import os
+from flask_cors import CORS
 
-app = Flask(_name_)
+# Initialize app
+app = Flask(__name__)
+CORS(app)
 
-# --- Get DATABASE_URL from environment ---
-DATABASE_URL = os.environ.get("DATABASE_URL")
+# Get database URL from environment
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# --- Parse DB URL ---
-result = urlparse(DATABASE_URL)
-
-db_host = result.hostname
-db_port = result.port or 5432
-db_name = result.path[1:]
-db_user = result.username
-db_password = result.password
+# Connect to PostgreSQL
+def get_connection():
+    return psycopg2.connect(DATABASE_URL, sslmode='require')
 
 
-# --- Function to get DB connection ---
-def get_db_connection():
-    return psycopg2.connect(
-        host=db_host,
-        port=db_port,
-        database=db_name,
-        user=db_user,
-        password=db_password
-    )
-
-
-# --- Initialize DB (create table if not exists) ---
+# Create table if not exists
 def init_db():
-    conn = get_db_connection()
+    conn = get_connection()
     cur = conn.cursor()
-
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS contacts (
-        id SERIAL PRIMARY KEY,
-        name TEXT,
-        email TEXT,
-        message TEXT
-    )
+        CREATE TABLE IF NOT EXISTS tasks (
+            id SERIAL PRIMARY KEY,
+            text TEXT NOT NULL,
+            completed BOOLEAN DEFAULT FALSE
+        );
     """)
-
     conn.commit()
     cur.close()
     conn.close()
 
 
-# Run DB init once on startup
+# Run once when app starts
 init_db()
 
 
-# --- Routes ---
-@app.route('/')
+# ---------------- ROUTES ---------------- #
+
+# Home route (for testing)
+@app.route("/")
 def home():
-    return render_template('index.html')
+    return "✅ API is running successfully!"
 
 
-@app.route('/contact', methods=['POST'])
-def contact():
+# Get all tasks
+@app.route("/tasks", methods=["GET"])
+def get_tasks():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, text, completed FROM tasks ORDER BY id DESC")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    tasks = []
+    for row in rows:
+        tasks.append({
+            "id": row[0],
+            "text": row[1],
+            "completed": row[2]
+        })
+
+    return jsonify(tasks)
+
+
+# Add new task
+@app.route("/tasks", methods=["POST"])
+def add_task():
     data = request.json
 
-    conn = get_db_connection()
+    if not data or "text" not in data:
+        return jsonify({"error": "Task text is required"}), 400
+
+    conn = get_connection()
     cur = conn.cursor()
-
     cur.execute(
-        "INSERT INTO contacts (name, email, message) VALUES (%s, %s, %s)",
-        (data['name'], data['email'], data['message'])
+        "INSERT INTO tasks (text) VALUES (%s) RETURNING id",
+        (data["text"],)
     )
-
+    task_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
     conn.close()
 
-    return jsonify({"message": "Message saved successfully!"})
+    return jsonify({
+        "id": task_id,
+        "message": "Task added successfully"
+    })
 
 
-@app.route('/admin')
-def admin():
-    conn = get_db_connection()
+# Update task (mark complete/incomplete)
+@app.route("/tasks/<int:task_id>", methods=["PUT"])
+def update_task(task_id):
+    data = request.json
+
+    if "completed" not in data:
+        return jsonify({"error": "completed field required"}), 400
+
+    conn = get_connection()
     cur = conn.cursor()
-
-    cur.execute("SELECT * FROM contacts ORDER BY id DESC")
-    data = cur.fetchall()
-
+    cur.execute(
+        "UPDATE tasks SET completed=%s WHERE id=%s",
+        (data["completed"], task_id)
+    )
+    conn.commit()
     cur.close()
     conn.close()
 
-    return render_template("admin.html", data=data)
+    return jsonify({"message": "Task updated"})
 
 
-# --- Run locally only ---
-if _name_ == '_main_':
+# Delete task
+@app.route("/tasks/<int:task_id>", methods=["DELETE"])
+def delete_task(task_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM tasks WHERE id=%s", (task_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({"message": "Task deleted"})
+
+
+# Run locally
+if __name__ == "__main__":
     app.run(debug=True)
